@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>油價查詢系統</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f5f5f5; }
+    input[type="text"], input[type="number"], input[type="date"] {
+      padding: 6px;
+      margin-right: 10px;
+      width: 150px;
+    }
+    button {
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    #searchInput {
+      width: 300px;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>油價查詢系統</h1>
+
+  <!-- 搜尋欄 -->
+  <input type="text" id="searchInput" placeholder="依日期或價格篩選..." />
+
+  <!-- 油價資料表格 -->
+  <table id="oilTable">
+    <thead>
+      <tr>
+        <th>調價日期</th>
+        <th>92 無鉛汽油</th>
+        <th>95 無鉛汽油</th>
+        <th>98 無鉛汽油</th>
+        <th>超級/高級柴油</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% oilPrices.forEach(row => { %>
+        <tr>
+          <td><%= row.date %></td>
+          <td><%= row.price_92 %></td>
+          <td><%= row.price_95 %></td>
+          <td><%= row.price_98 %></td>
+          <td><%= row.price_diesel %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <!-- 新增資料表單 -->
+  <h2>新增 / 更新油價資料</h2>
+  <form id="addForm">
+    <input type="text" name="date" placeholder="日期 (例: 114/05/26)" required />
+    <input type="number" step="0.1" name="price_92" placeholder="92 無鉛汽油" required />
+    <input type="number" step="0.1" name="price_95" placeholder="95 無鉛汽油" required />
+    <input type="number" step="0.1" name="price_98" placeholder="98 無鉛汽油" required />
+    <input type="number" step="0.1" name="price_diesel" placeholder="超級柴油" required />
+    <button type="submit">新增 / 更新</button>
+  </form>
+
+  <!-- 爬蟲更新按鈕 -->
+  <button id="updateBtn">取得最新油價資料</button>
+
+  <script>
+    // 搜尋功能
+    const searchInput = document.getElementById('searchInput');
+    const table = document.getElementById('oilTable').getElementsByTagName('tbody')[0];
+
+    searchInput.addEventListener('input', function () {
+      const filter = this.value.toLowerCase();
+
+      Array.from(table.rows).forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+      });
+    });
+
+    // 新增 / 更新資料
+    const addForm = document.getElementById('addForm');
+    addForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const formData = new FormData(addForm);
+      const data = {
+        date: formData.get('date'),
+        price_92: parseFloat(formData.get('price_92')),
+        price_95: parseFloat(formData.get('price_95')),
+        price_98: parseFloat(formData.get('price_98')),
+        price_diesel: parseFloat(formData.get('price_diesel'))
+      };
+
+      try {
+        const res = await fetch('/api/oil-prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        alert(result.message || JSON.stringify(result));
+        if (res.ok) {
+          location.reload();
+        }
+      } catch (err) {
+        alert('新增/更新失敗');
+      }
+    });
+
+    // 爬蟲更新按鈕
+    const updateBtn = document.getElementById('updateBtn');
+    updateBtn.addEventListener('click', async () => {
+      updateBtn.disabled = true;
+      updateBtn.textContent = '更新中...';
+
+      try {
+        const res = await fetch('/api/oil-prices/update');
+        const result = await res.json();
+        alert(result.message || JSON.stringify(result));
+        if (res.message) location.reload();
+      } catch (err) {
+        alert('更新失敗');
+      } finally {
+        updateBtn.disabled = false;
+        updateBtn.textContent = '取得最新油價資料(需重新整理)';
+      }
+    });
+    
+  </script>
+</body>
+</html>
